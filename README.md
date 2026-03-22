@@ -67,3 +67,88 @@ pip install -r requirements.txt
 
 # Install Playwright browsers
 playwright install
+```
+
+> **Tip:** The `requirements.txt` contains `playwright`, `google-api-python-client`, `google-auth`, and any other helper libraries.
+
+---
+
+## Configuration
+
+1. **Bitwarden**  
+   - Store a login item named **`LinkedIn`** with the username & password in the *Login* fields.  
+   - Store a note named **`GoogleSheets`** containing:  
+     *Secure note*: the full JSON of a service‑account key (`credentials.json`).  
+     *Custom field*: `SHEET_ID` → the ID of the Google Sheet you created.
+
+2. **Unlock Bitwarden & export session**  
+
+   ```bash
+   bw unlock           # copy the session key printed
+   export BW_SESSION=<session-key>
+   ```
+
+   Keep the session alive while the script runs.
+
+3. **Edit search parameters** (optional)  
+   Open `linkedin_easy_apply_bw.py` and modify the `KEYWORDS` and `LOCATIONS` lists.
+
+4. **Resume**  
+   - `resume.txt` – plain‑text version of your résumé (used for keyword matching).  
+   - `resume_pratham_meena.pdf` – the file that would be uploaded if you enable the actual submit logic.
+
+---
+
+## Usage
+
+```bash
+python linkedin_easy_apply_bw.py
+```
+
+The script will:
+
+1. Open a Chromium window (headful by default; change `headless=False` to `True` for headless).  
+2. Log into LinkedIn with the Bitwarden‑retrieved credentials.  
+3. Iterate over each keyword/location pair, collect job cards, and for each job:
+   * Detect if “Easy Apply” is available (or redirects to the company site).  
+   * Pull the full job description.  
+   * Run `analyze_job_fit` against your résumé.  
+   * If the match ≥ 70 % → log the attempt to Google Sheets via `sheets_logger.log_application`.  
+4. Sleep briefly between operations to avoid triggering LinkedIn rate limits.
+
+---
+
+## How it works (high‑level)
+
+```
++-------------------+      +--------------------+      +-------------------+
+| Bitwarden CLI     | ---> | linkedin_easy_... | ---> | Google Sheets API |
+| (bw get item)      |      |   (Playwright)     |      | (service account)|
++-------------------+      +--------------------+      +-------------------+
+          ^                         ^                         ^
+          |                         |                         |
+   Credentials (email, pw)   Job search & apply          Logging rows:
+   Google service‑account   detection, description    Timestamp, Company,
+   (JSON + sheet ID)        analysis                  Title, URL, Status,
+                                                     Match %, Skills…
+```
+
+* `linkedin_easy_apply_bw.py` – main driver, uses Playwright for UI actions.  
+* `sheets_logger.py` – tiny wrapper that writes a row to the configured sheet.  
+* `job_analyzer.py` – **not included** in this repo sample; expected to expose  
+  `analyze_job_fit(job_desc, resume_text, resume_skills)` and `resume_skills`.  
+
+All secret handling lives in the Bitwarden helper functions, so no password or API key ever appears in source control.
+
+---
+
+## Contributing
+
+1. Fork the repository.  
+2. Create a feature branch (`git checkout -b feature/awesome‑thing`).  
+3. Keep code style consistent (PEP 8, type hints where helpful).  
+4. Ensure you **do not** commit any credential data.  
+5. Open a Pull Request with a clear description of the change.
+---
+
+*Happy hunting! 🎯*
